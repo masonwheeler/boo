@@ -31,18 +31,48 @@ using Boo.Lang.Compiler.TypeSystem.Internal;
 
 namespace Boo.Lang.Compiler.Steps
 {
+	using System.Collections.Generic;
+	using System.Linq;
 	using Boo.Lang.Compiler.Ast;
 	using Boo.Lang.Compiler.TypeSystem;
 	
 	public class ProcessClosures : AbstractTransformerCompilerStep
 	{
+		
+		private Method _currentMethod;
+		
+		private Stack<Method> _closures = new Stack<Method>();
+		
 		override public void Run()
 		{
 			Visit(CompileUnit);
 		}
 
+		override public bool EnterMethod(Method node)
+		{
+			_currentMethod = node;
+			return true;
+		}
+	
+		override public bool EnterConstructor(Constructor node)
+		{
+			return EnterMethod(node);
+		}
+	
+		override public bool EnterDestructor(Destructor node)
+		{
+			return EnterMethod(node);
+		}
+	
+		override public bool EnterBlockExpression(BlockExpression node)
+		{
+			_closures.Push(((InternalMethod)node.Entity).Method);
+			return true;
+		}
+	
 		override public void LeaveBlockExpression(BlockExpression node)
 		{
+			_closures.Pop(); //can't use yourself for nested scope
 			var closureEntity = GetEntity(node) as InternalMethod;
 			if (closureEntity == null)
 				return;
@@ -53,38 +83,39 @@ namespace Boo.Lang.Compiler.Steps
 				collector.CurrentType = (IType)closureEntity.DeclaringType;
 				closureEntity.Method.Body.Accept(collector);
 				
+				Local localNode = _closures.SelectMany(m => m.Locals).Where(l => l.Name == "$locals").FirstOrDefault();
+				if (localNode == null)
+					localNode = _currentMethod.Locals.FirstOrDefault(l => l.Name == "$locals");
+				InternalLocal localClass;
+				if (localNode == null)
+					throw new CompilerError(node, "No local declared");
+				else localClass = (InternalLocal) localNode.Entity;
 				if (collector.ContainsForeignLocalReferences)
 				{
-					BooClassBuilder closureClass = CreateClosureClass(collector, closureEntity);
-					closureClass.ClassDefinition.LexicalInfo = node.LexicalInfo;
+					ClassDefinition closureClass = node.GetAncestor<ClassDefinition>();
 					collector.AdjustReferences();
 					
 					ReplaceCurrentNode(
 						CodeBuilder.CreateMemberReference(
-							collector.CreateConstructorInvocationWithReferencedEntities(
-								closureClass.Entity),
+							CodeBuilder.CreateReference(localClass),
 							closureEntity));
 				}
 				else
 				{
-					Expression expression = CodeBuilder.CreateMemberReference(closureEntity);
+					Expression expression = CodeBuilder.CreateMemberReference(
+						CodeBuilder.CreateReference(localClass),
+						closureEntity);
 					expression.LexicalInfo = node.LexicalInfo;
 					TypeSystemServices.GetConcreteExpressionType(expression);
 					ReplaceCurrentNode(expression);
 				}
 			}
+			CheckStatic(closureEntity);
 		}
 		
-		BooClassBuilder CreateClosureClass(ForeignReferenceCollector collector, InternalMethod closure)
+		void CheckStatic(InternalMethod closure)
 		{
 			Method method = closure.Method;
-			TypeDefinition parent = method.DeclaringType;
-			parent.Members.Remove(method);
-			
-			BooClassBuilder builder = collector.CreateSkeletonClass(closure.Name, method.LexicalInfo);
-			parent.Members.Add(builder.ClassDefinition);
-			builder.ClassDefinition.Members.Add(method);
-			method.Name = "Invoke";
 			
 			if (method.IsStatic)
 			{
@@ -96,7 +127,6 @@ namespace Boo.Lang.Compiler.Steps
 			}
 			
 			method.Modifiers = TypeMemberModifiers.Public;
-			return builder;
 		}
 	}
 }

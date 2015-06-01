@@ -47,7 +47,13 @@ namespace Boo.Lang.Compiler.Steps
 
 		readonly List<ReferenceExpression> _references = new List<ReferenceExpression>();
 
+		readonly List<SelfLiteralExpression> _selfRefs = new List<SelfLiteralExpression>();
+
 		readonly List<ILocalEntity> _shared = new List<ILocalEntity>();
+
+		readonly List<Method> _closures = new List<Method>();
+
+		IField _localSelfField;
 		
 		int _closureDepth;
 		
@@ -76,12 +82,20 @@ namespace Boo.Lang.Compiler.Steps
 			OnMethod(node);
 		}
 		
+		override public void OnDestructor(Destructor node)
+		{
+			OnMethod(node);
+		}
+		
 		override public void OnMethod(Method node)
 		{
 			_references.Clear();
 			_mappings.Clear();
+			_closures.Clear();
+			_selfRefs.Clear();
 			_currentMethod = node;
 			_sharedLocalsClass = null;
+			_localSelfField = null;
 			_closureDepth = 0;
 			
 			Visit(node.Body);
@@ -98,6 +112,7 @@ namespace Boo.Lang.Compiler.Steps
 		{
 			++_closureDepth;
 			Visit(node.Body);
+			_closures.Add(((InternalMethod)node.Entity).Method);
 			--_closureDepth;
 		}
 		
@@ -114,7 +129,9 @@ namespace Boo.Lang.Compiler.Steps
 		{
 			ILocalEntity local = node.Entity as ILocalEntity;
 			if (null == local) return;
-			if (local.IsPrivateScope) return;
+			// avoid closing over compiler-generated locals, but we need to grab FOR loop indices, which
+			// are also marked IsPrivateScope to keep from generating bogus warnings in certain conditions
+			if (local.IsPrivateScope && local.Name.IndexOf('$') >= 0) return;
 			
 			_references.Add(node);
 			
@@ -123,6 +140,27 @@ namespace Boo.Lang.Compiler.Steps
 			local.IsShared = _currentMethod.Locals.ContainsEntity(local)
 							|| _currentMethod.Parameters.ContainsEntity(local);
 			
+		}
+		
+		override public void OnSelfLiteralExpression(SelfLiteralExpression node)
+		{
+			if (_closureDepth == 0) return;
+			
+			//no self adjustment if it's part of a generator expression
+			var be = node.GetAncestor(NodeType.BlockExpression);
+			if (be == null) return;
+			
+			IMethod local = node.Entity as IMethod;
+			if (null == local) return;
+			
+			_selfRefs.Add(node);
+		}
+		
+		private Expression CreateLocalsReference(ReferenceExpression reference, InternalLocal locals)
+		{
+			if (((ITypedEntity)reference.GetAncestor(NodeType.ClassDefinition).Entity).Type == locals.Type)
+				return CodeBuilder.CreateSelfReference(locals.Type);
+			return CodeBuilder.CreateReference(locals);
 		}
 		
 		void Map()
@@ -138,8 +176,17 @@ namespace Boo.Lang.Compiler.Steps
 				reference.ParentNode.Replace(
 					reference,
 					CodeBuilder.CreateMemberReference(
-						CodeBuilder.CreateReference(locals),
+						CreateLocalsReference(reference, locals),
 						mapped));
+			}
+			
+			foreach (SelfLiteralExpression selfRef in _selfRefs)
+			{
+				selfRef.ParentNode.Replace(
+					selfRef,
+					CodeBuilder.CreateMemberReference(
+						CodeBuilder.CreateSelfReference(locals.Type),
+						_localSelfField));
 			}
 			
 			Block initializationBlock = new Block();
@@ -157,6 +204,15 @@ namespace Boo.Lang.Compiler.Steps
 		
 		void InitializeSharedParameters(Block block, InternalLocal locals)
 		{
+			if (_selfRefs.Count > 0)
+			{
+				block.Add(
+					CodeBuilder.CreateAssignment(
+						CodeBuilder.CreateMemberReference(
+							CodeBuilder.CreateReference(locals),
+							_localSelfField),
+						CodeBuilder.CreateSelfReference(((ITypedEntity)_currentMethod.DeclaringType.Entity).Type)));
+			}
 			foreach (Node node in _currentMethod.Parameters)
 			{
 				InternalParameter param = (InternalParameter)node.Entity;
@@ -179,21 +235,34 @@ namespace Boo.Lang.Compiler.Steps
 			CollectSharedLocalEntities(_currentMethod.Locals);
 			CollectSharedLocalEntities(_currentMethod.Parameters);
 			
-			if (_shared.Count > 0)
+			if (_shared.Count > 0 || _closures.Count > 0 )
 			{
 				BooClassBuilder builder = CodeBuilder.CreateClass(Context.GetUniqueName(_currentMethod.Name, "locals"));
 				builder.Modifiers |= TypeMemberModifiers.Internal;
 				builder.AddBaseType(TypeSystemServices.ObjectType);
 				
-				int i=0;
 				foreach (ILocalEntity local in _shared)
 				{
 					Field field = builder.AddInternalField(
 									string.Format("${0}", local.Name),
 									local.Type);
-					++i;
 					
 					_mappings[local] = field.Entity;
+				}
+				
+				if (_selfRefs.Count > 0)
+				{
+					Field field = builder.AddInternalField(
+									"$self",
+									((ITypedEntity)_currentMethod.DeclaringType.Entity).Type);
+					
+					_localSelfField = (IField)field.Entity;
+				}
+				
+				foreach (Method closure in _closures)
+				{
+					closure.DeclaringType.Members.Remove(closure);
+					builder.ClassDefinition.Members.Add(closure);
 				}
 				
 				builder.AddConstructor().Body.Add(
