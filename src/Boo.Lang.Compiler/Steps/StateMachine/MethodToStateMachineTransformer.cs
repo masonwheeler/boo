@@ -378,7 +378,9 @@ namespace Boo.Lang.Compiler.Steps.StateMachine
 
 	    private void MapMember(MemberReferenceExpression node, IMember member)
 	    {
-		    var baseType = member.DeclaringType;
+            if (!_methodToStateMachineMapper.Any)
+                return;
+            var baseType = member.DeclaringType;
 		    var mapped = member as IGenericMappedMember;
 		    if (mapped != null)
 		    {
@@ -418,7 +420,7 @@ namespace Boo.Lang.Compiler.Steps.StateMachine
 					var con = member as IConstructedMethodInfo;
 					if (con != null)
 					{
-						var gd = (IGenericMethodInfo)con.GenericDefinition;
+						var gd = con.GenericDefinition.GenericInfo;
 						member = gd.ConstructMethod(con.GenericArguments.Select(_methodToStateMachineMapper.MapType).ToArray());
 					}
 				}

@@ -107,6 +107,16 @@ def Main(argv as (string)):
 		{
 	""")
 	
+	GenerateTestFixture("async", "BooCompiler.Tests/AsyncTestFixture.cs", "BooCompiler.Async", """
+	namespace BooCompiler.Tests
+	{
+		using NUnit.Framework;
+
+		[TestFixture]
+		public class AsyncTestFixture : AbstractCompilerTestCase
+		{
+	""")
+
 	GenerateTestFixture("attributes", "BooCompiler.Tests/AttributesTestFixture.cs", "BooCompiler.Attributes", """
 	namespace BooCompiler.Tests
 	{
@@ -302,8 +312,10 @@ def MapPath(path):
 	return Path.GetFullPath(path)
 
 def WriteTestCases(writer as TextWriter, baseDir as string):
-	count, ignored = 0, 0
-	for fname as string in Directory.GetFiles(MapPath("testcases/${baseDir}")):
+	count, ignored = 0, 0;
+	testCasePath = MapPath("testcases/${baseDir}");
+	System.IO.Directory.CreateDirectory(testCasePath);
+	for fname as string in Directory.GetFiles(testCasePath):
 		continue unless fname.EndsWith(".boo")
 		attribute = CategoryAttributeFor(fname)
 		

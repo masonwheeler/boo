@@ -1006,11 +1006,28 @@ namespace Boo.Lang.Compiler.Steps
 			Warnings.Add(CompilerWarningFactory.MethodHidesInheritedNonVirtual(hidingMethod.Method, hidingMethod, hiddenMethod));
 		}
 
+		Property GetInternalProperty(IProperty value)
+		{
+			var mapped = value as GenericMappedProperty;
+			if (mapped != null)
+				value = mapped.SourceMember;
+
+			var internalProperty = value as InternalProperty;
+			if (internalProperty != null)
+				return internalProperty.Property;
+
+			return null;
+		}
+
 		IMethod FindPropertyAccessorOverridenBy(Property property, Method accessor)
 		{
 			var baseProperty = ((InternalProperty)property.Entity).Overriden;
 			if (baseProperty == null)
 				return null;
+
+			var overriddenProperty = GetInternalProperty(baseProperty);
+			if (overriddenProperty != null)
+				EnsureMemberWasVisited(overriddenProperty);
 
 			var baseAccessor = property.Getter == accessor ? baseProperty.GetGetMethod() : baseProperty.GetSetMethod();
 			if (baseAccessor != null && TypeSystemServices.CheckOverrideSignature((IMethod) accessor.Entity, baseAccessor))
@@ -2393,7 +2410,12 @@ namespace Boo.Lang.Compiler.Steps
 
 		virtual protected void ProcessMemberReferenceExpression(MemberReferenceExpression node)
 		{
-			var entity = ResolveMember(node);
+            if (node.Target.ExpressionType is Unknown)
+            {
+                FixUnknownExpression(node.Target);
+            }
+
+            var entity = ResolveMember(node);
 			if (null == entity)
 				return;
 
@@ -2463,7 +2485,46 @@ namespace Boo.Lang.Compiler.Steps
 			PostProcessReferenceExpression(node);
 		}
 
-		private static Node MemberAnchorFor(Node node)
+        void FixUnknownExpression(Expression target)
+        {
+            var entity = (target.Entity as ITypedEntity);
+            if (entity == null)
+                return;
+            var type = FixEntityType(entity);
+            if (type != null)
+                target.ExpressionType = type;
+        }
+
+        IType FixEntityType(ITypedEntity entity)
+        {
+            var internalType = entity as IInternalEntity;
+            if (internalType != null)
+            {
+                var node = internalType.Node;
+                var oldNamespace = CurrentNamespace;
+                try
+                {
+                    Visit(node);
+                }
+                finally
+                {
+                    //hack because there's no more accessible way to set the CurrentNamespace property
+                    My<CurrentScope>.Instance.Value = oldNamespace;
+                }
+                var nodeEntity = node.Entity as ITypedEntity;
+                return nodeEntity == null ? null : nodeEntity.Type;
+
+            }
+            var gen = entity as IGenericMappedMember;
+            if (gen != null)
+            {
+                FixEntityType(gen.SourceMember);
+                return gen.Type;
+            }
+            return null;
+        }
+
+        private static Node MemberAnchorFor(Node node)
 		{
 			return AstUtil.GetMemberAnchor(node);
 		}
@@ -2700,7 +2761,7 @@ namespace Boo.Lang.Compiler.Steps
 				AssertTypeCompatibility(node.Expression, returnType, expressionType);
 
 			//bind to nullable Value if needed
-			if (TypeSystemServices.IsNullable(expressionType) && !TypeSystemServices.IsNullable(returnType))
+			if (TypeSystemServices.IsNullable(expressionType) && !(TypeSystemServices.IsNullable(returnType) || TypeSystemServices.IsUnknown(returnType)))
 			{
 				// TODO: move to later steps or introduce an implicit conversion operator
 				var mre = new MemberReferenceExpression(node.Expression.LexicalInfo, node.Expression, "Value");
@@ -4243,6 +4304,16 @@ namespace Boo.Lang.Compiler.Steps
 				{
 					expr.ExpressionType = null;
 					InferClosureSignature(expr);
+					if (expr.ExpressionType == null)
+					{
+						if (node.Target.Entity != null && node.Target.Entity.EntityType == EntityType.Method)
+						{
+							var index = node.Arguments.IndexOf(be);
+							if (index == -1) continue;
+							expr.ExpressionType = ((IMethod)node.Target.Entity).GetParameters()[index].Type;
+						}
+						continue;
+					}
 					if (be != expr)
 						be.ExpressionType = expr.ExpressionType;
 					var associatedMethod = ((InternalMethod)expr.Entity).Method;
@@ -5754,6 +5825,8 @@ namespace Boo.Lang.Compiler.Steps
 						IMethod methodEntity = (IMethod)entity;
 						if (TypeSystemServices.IsUnknown(methodEntity.ReturnType))
 						{
+							if (node.ParentNode.NodeType == NodeType.Property)
+								EnsureMemberWasVisited((TypeMember)node.ParentNode);
 							// try to preprocess the method to resolve its return type
 							Method method = (Method)node;
 							PreProcessMethod(method);

@@ -10,9 +10,9 @@
 
 """
 
-from System import Environment
-from System.IO import Path
-from System.Net import WebClient, WebException
+from System import Environment, Uri
+from System.IO import Path, File
+from System.Net import WebClient, WebException, HttpWebResponse
 from System.Collections.Generic import List
 import System.Web.Script.Serialization from System.Web.Extensions
 
@@ -58,6 +58,7 @@ def client():
     wc.Headers['Authorization'] = 'token ' + Environment.GetEnvironmentVariable('GITHUB_TOKEN')
     # The API requires this custom Accept header while in beta
     wc.Headers.Add('Accept', 'application/vnd.github.manifold-preview')
+    wc.Headers.Add('user-agent', 'boo-lang')
     return wc
 
 if len(argv) < 2:
@@ -68,18 +69,23 @@ if not Environment.GetEnvironmentVariable('GITHUB_TOKEN'):
     raise 'GITHUB_TOKEN environment variable not set'
 
 MAX_UPLOAD_RETRIES = 5
-USERNAME = 'bamboo'
+USERNAME = 'boo-lang'
 REPO = 'boo'
 API_URL = "https://api.github.com/repos/$USERNAME/$REPO/releases"
 RELEASE_NAME = argv[0]
 ASSET_FILE = argv[1]
-RELEASE_URL = "https://api.github.com/repos/drslump/boo/releases/$RELEASE_NAME"
 ASSET_NAME = Path.GetFileName(ASSET_FILE)
 
 json = JavaScriptSerializer()
 
 print "Looking for release $RELEASE_NAME"
-result = client().DownloadString(API_URL)
+try:
+    result = client().DownloadString(API_URL)
+except wx as WebException:
+    var e = wx.Response cast HttpWebResponse
+    using sr = System.IO.StreamReader(e.GetResponseStream()):
+        print sr.ReadToEnd()
+    raise
 releases = json.Deserialize[of List[of Release]](result)
 release = releases.Find({rel | rel.tag_name == RELEASE_NAME})
 
@@ -92,16 +98,24 @@ for asset in release.assets:
         client().UploadData(asset.url as string, "DELETE", array(byte, 0))
         break
 
-upload_url = (release.upload_url as string).Replace('{?name}', "?name=$ASSET_NAME")
+upload_url = (release.upload_url as string).Replace('{?name,label}', "?name=$ASSET_NAME")
 print "Uploading $ASSET_FILE to $upload_url"
 retries = 0
 :retry
 try: 
-    client().UploadFile(upload_url, ASSET_FILE)
+    using uploadClient = client():
+        uploadClient.Headers.Add("Content-Type", "application/zip")
+        using fileStream = File.OpenRead(ASSET_FILE), requestStream = uploadClient.OpenWrite(Uri(upload_url), "POST"):
+            fileStream.CopyTo(requestStream)
 except ex as WebException:
+    var e2 = ex.Response cast HttpWebResponse
+    using sr = System.IO.StreamReader(e2.GetResponseStream()):
+        print sr.ReadToEnd()
     retries += 1
     if retries >= MAX_UPLOAD_RETRIES:
         print "Too many retries, giving up..."
         raise ex 
     print "Upload failed ($(ex.Message)), retrying..."
     goto retry
+
+print 'Upload successful.'
