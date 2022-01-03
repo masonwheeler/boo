@@ -45,13 +45,11 @@ namespace Boo.Lang.Compiler.Steps.Ecma335
             ValueTypeEntity = tss.ValueTypeType;
             ObjectTypeEntity = tss.ObjectType;
 
-            /*
             var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies();
             var runtimeName = loadedAssemblies.Single(a => a.GetName().Name == "System.Runtime").GetName();
             var privateAsm = loadedAssemblies.Single(a => a.GetName().Name == "System.Private.CoreLib");
             var handle = HandleForAssemblyName(runtimeName);
             _assemblyLookup[privateAsm] = handle;
-            */
 
             ObjectType = (TypeReferenceHandle)LookupType(tss.ObjectType);
             _getValue = getValue;

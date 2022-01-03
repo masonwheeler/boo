@@ -1,24 +1,18 @@
-﻿using System;
+﻿using System.Threading;
+using System.Threading.Tasks;
+using System;
+using System.Linq;
 
-namespace Testcase
+class Program
 {
-    public class Foo { }
-
-    public class Bar : Foo
+    static void Main()
     {
-        virtual public void Run()
-        {
-            Console.WriteLine("Bar.Run");
-        }
-    }
-
-    internal class Program
-    {
-        static void Main(string[] args)
-        {
-            var foos = new Foo[] { new Bar(), new Bar() };
-            foreach (Bar foo in foos)
-                foo.Run();
-        }
-    }
+		var asm = typeof(C0).Assembly;
+		foreach (var type in asm.GetTypes())
+		{
+			Console.WriteLine(type.Name);
+			foreach (var arg in (Attribute.GetCustomAttribute(asm.GetType(type.Name), typeof(VarArgsAttribute)) as VarArgsAttribute).Args)
+				Console.WriteLine($"\t{arg}");
+		}
+	}
 }

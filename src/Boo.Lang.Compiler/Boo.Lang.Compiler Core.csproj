@@ -14,12 +14,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Lokad.ILPack" Version="0.1.7" />
     <PackageReference Include="System.Security.Permissions" Version="5.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\ILPack\src\Lokad.ILPack.csproj" />
     <ProjectReference Include="..\Boo.Lang\Boo.Lang Core.csproj" />
   </ItemGroup>
 

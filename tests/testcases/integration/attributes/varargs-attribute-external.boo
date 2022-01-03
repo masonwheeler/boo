@@ -18,7 +18,7 @@ code = [|
 	import System
 	
 	[VarArgs]
-	class C0:
+	public class C0:
 		pass
 		
 	[VarArgs("foo")]
