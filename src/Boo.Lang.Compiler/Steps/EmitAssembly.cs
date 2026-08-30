@@ -1744,7 +1744,7 @@ namespace Boo.Lang.Compiler.Steps
 
 		void LoadLocal(InternalLocal local, bool byAddress)
 		{
-			_il.Emit(IsByAddress(local.Type) ? OpCodes.Ldloca : OpCodes.Ldloc, local.LocalBuilder);
+			_il.Emit(IsByAddress(local.Type) || local.Type is ExternalType { ActualType.IsByRefLike: true} ? OpCodes.Ldloca : OpCodes.Ldloc, local.LocalBuilder);
 
 			PushType(local.Type);
 			_currentLocal = local.LocalBuilder;
@@ -4387,8 +4387,19 @@ namespace Boo.Lang.Compiler.Steps
 		{
 			if ((actualType.IsValueType && !expectedType.IsValueType)
 				|| (actualType is IGenericParameter && !(expectedType is IGenericParameter)))
-				EmitBox(actualType);
+			{
+				if (actualType is ExternalType { ActualType.IsByRefLike: true })
+				{
+					EmitConstrained(actualType);
+				}
+				else
+				{
+					EmitBox(actualType);
+				}
+			}
 		}
+
+		private void EmitConstrained(IType type) => _il.Emit(OpCodes.Constrained, GetSystemType(type));
 
 		void EmitBox(IType type)
 		{
