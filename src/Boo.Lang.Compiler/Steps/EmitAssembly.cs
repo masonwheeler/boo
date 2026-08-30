@@ -4303,8 +4303,15 @@ namespace Boo.Lang.Compiler.Steps
 			{
 				if (!actualType.IsValueType)
 				{
-					// To get a value type out of a reference type we emit an unbox opcode
-					EmitUnbox(expectedType);
+					if (actualType.IsByRef && actualType.ElementType == expectedType)
+					{
+						EmitDeref(expectedType);
+					}
+					else
+					{
+						// To get a value type out of a reference type we emit an unbox opcode
+						EmitUnbox(expectedType);
+					}
 					return;
 				}
 
@@ -4418,6 +4425,33 @@ namespace Boo.Lang.Compiler.Steps
 			if (type == TypeSystemServices.DecimalType) return Methods.Of<object, decimal>(RuntimeServices.UnboxDecimal);
 			if (type == TypeSystemServices.BoolType) return Methods.Of<object, bool>(RuntimeServices.UnboxBoolean);
 			if (type == TypeSystemServices.CharType) return Methods.Of<object, char>(RuntimeServices.UnboxChar);
+			return null;
+		}
+
+		private void EmitDeref(IType type)
+		{
+			var opcode = DerefOpcodeFor(type);
+			if (opcode != null) {
+				_il.Emit(opcode.Value);
+			} else {
+				_il.Emit(OpCodes.Ldobj, GetSystemType(type));
+			}
+		}
+
+		private OpCode? DerefOpcodeFor(IType type)
+		{
+			if (type == TypeSystemServices.ByteType) return OpCodes.Ldind_U1;
+			if (type == TypeSystemServices.SByteType) return OpCodes.Ldind_I1;
+			if (type == TypeSystemServices.ShortType) return OpCodes.Ldind_I2;
+			if (type == TypeSystemServices.UShortType) return OpCodes.Ldind_U2;
+			if (type == TypeSystemServices.IntType) return OpCodes.Ldind_I4;
+			if (type == TypeSystemServices.UIntType) return OpCodes.Ldind_U4;
+			if (IsLong(type)) return OpCodes.Ldind_I8;
+			if (type == TypeSystemServices.ULongType) return OpCodes.Ldind_I8;
+			if (type == TypeSystemServices.SingleType) return OpCodes.Ldind_R4;
+			if (type == TypeSystemServices.DoubleType) return OpCodes.Ldind_R8;
+			if (type == TypeSystemServices.BoolType) return OpCodes.Ldind_U1;
+			if (type == TypeSystemServices.CharType) return OpCodes.Ldind_U2;
 			return null;
 		}
 

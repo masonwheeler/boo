@@ -570,16 +570,19 @@ namespace Boo.Lang.Compiler.TypeSystem
 		{
 			byDowncast = false;
 			return IsAssignableFrom(expectedType, actualType)
-			       || CanBeReachedByPromotion(expectedType, actualType)
-			       || FindImplicitConversionOperator(actualType, expectedType) != null
-			       || (considerExplicitConversionOperators && FindExplicitConversionOperator(actualType, expectedType) != null)
-				   || (byDowncast = DowncastPermissions().CanBeReachedByDowncast(expectedType, actualType));
+					|| IsDeref(expectedType, actualType)
+					|| CanBeReachedByPromotion(expectedType, actualType)
+					|| FindImplicitConversionOperator(actualType, expectedType) != null
+					|| (considerExplicitConversionOperators && FindExplicitConversionOperator(actualType, expectedType) != null)
+					|| (byDowncast = DowncastPermissions().CanBeReachedByDowncast(expectedType, actualType));
 		}
 
 		private DowncastPermissions DowncastPermissions()
 		{
 			return _downcastPermissions ?? (_downcastPermissions = My<DowncastPermissions>.Instance);
 		}
+		private static bool IsDeref(IType expectedType, IType actualType)
+			=> actualType.IsByRef && actualType.ElementType == expectedType;
 
 		private bool InStrictMode()
 		{

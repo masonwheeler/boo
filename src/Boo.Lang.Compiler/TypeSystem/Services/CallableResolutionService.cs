@@ -45,20 +45,21 @@ namespace Boo.Lang.Compiler.TypeSystem
 	/// </summary>
 	public class CallableResolutionService : AbstractCompilerComponent
 	{
-		protected const int CallableExactMatchScore = 11;
-		protected const int CallableUpCastScore = 10;
-		protected const int CallableImplicitConversionScore = 9;
-		protected const int ExactMatchScore = 9;
+		protected const int CallableExactMatchScore = 12;
+		protected const int CallableUpCastScore = 11;
+		protected const int CallableImplicitConversionScore = 10;
+		protected const int ExactMatchScore = 10;
+		protected const int DerefScore = 9;
 		protected const int UpCastScore = 8;
-        protected const int GenericInstantiateScore = 7;
-        protected const int WideningPromotion = 6;
+		protected const int GenericInstantiateScore = 7;
+		protected const int WideningPromotion = 6;
 		protected const int ImplicitConversionScore = 5;
 		protected const int NarrowingPromotion = 4;
 		protected const int DowncastScore = 3;
 
 		protected List<Candidate> _candidates = new List<Candidate>();
 		protected ExpressionCollection _arguments;
-	    private DowncastPermissions _downcastPermissions;
+		private DowncastPermissions _downcastPermissions;
 		readonly MemoizedFunction<IType, IType, int> _calculateArgumentScore;
 
 	    public CallableResolutionService() : base(CompilerContext.Current)
@@ -561,6 +562,9 @@ namespace Boo.Lang.Compiler.TypeSystem
                     return GenericInstantiateScore;
 				return UpCastScore;
 			}
+
+			if (argumentType.IsByRef && argumentType.ElementType == parameterType)
+				return DerefScore;
 
 			if (TypeSystemServices.FindImplicitConversionOperator(argumentType, parameterType) != null)
 				return ImplicitConversionScore;
