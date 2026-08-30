@@ -19,3 +19,4 @@ build-tools/tools
 build-tools/.config-mono
 
 /src/.vs
+/.vs
