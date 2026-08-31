@@ -62,14 +62,12 @@ namespace BooCompiler.Tests
 		}
 
 #if !MSBUILD
-		static bool GetEnvironmentFlag(string name, bool defaultValue)
-		{
-			var value = Environment.GetEnvironmentVariable(name);
+		static bool GetEnvironmentFlag(string name, bool defaultValue)		{			var value = Environment.GetEnvironmentVariable(name);
 			return value == null ? defaultValue : bool.Parse(value);
 		}
 #endif
 
-		[TestFixtureSetUp]
+		[OneTimeSetUp]
 		public virtual void SetUpFixture()
 		{
 			System.Threading.Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
@@ -91,14 +89,7 @@ namespace BooCompiler.Tests
 
 		private string TestOutputPath
 		{
-			get
-			{
-#if MSBUILD
-				return Path.Combine(Path.GetTempPath(), "msbuild");
-#else
-				return Path.GetTempPath();
-#endif
-			}
+			get { return Path.Combine(Path.GetTempPath(), "boo-tests", GetType().Name); }
 		}
 
 		protected virtual string GetRelativeTestCasesPath()
@@ -147,7 +138,17 @@ namespace BooCompiler.Tests
 			return File.GetLastWriteTime(fileName) > File.GetLastWriteTime(thanFileName);
 		}
 
-		[TestFixtureTearDown]
+		[TearDown]
+		public void QueueGeneratedAssemblyForVerification()
+		{
+			if (!VerifyGeneratedAssemblies)
+				return;
+
+			VerificationQueue.Enqueue(_parameters.OutputAssembly,
+				GetType().Name + "." + TestContext.CurrentContext.Test.Name);
+		}
+
+		[OneTimeTearDown]
 		public virtual void TearDownFixture()
 		{	
 		}
@@ -172,10 +173,11 @@ namespace BooCompiler.Tests
 		protected virtual CompilerPipeline SetUpCompilerPipeline()
 		{
 			CompilerPipeline pipeline = VerifyGeneratedAssemblies
-				? new CompileToFileAndVerify()
+				? new CompileToFile()
 				: new CompileToMemory();
 
 			pipeline.Add(new RunAssembly());
+			pipeline.Replace(typeof(Boo.Lang.Compiler.Steps.Parsing), BooTestCaseUtil.ParsingStep());
 			return pipeline;
 		}
 

@@ -45,13 +45,41 @@ namespace BooCompiler.Tests
 			get { return Path.Combine(BasePath, "tests/testcases"); }
 		}
 
+		private static string _basePath;
+
+		/// <summary>
+		/// The repository root, found by walking up from the test assembly until
+		/// tests/testcases appears. The old build put every test assembly in one
+		/// fixed directory; the SDK gives each project its own.
+		/// </summary>
 		public static string BasePath
 		{
-			get
-			{
-				var codebase = new Uri(Assembly.GetExecutingAssembly().CodeBase);
-				return new Uri(codebase, "../..").LocalPath;
-			}
+			get { return _basePath ?? (_basePath = FindBasePath()); }
+		}
+
+		private static string FindBasePath()
+		{
+			for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
+				if (Directory.Exists(Path.Combine(dir.FullName, "tests", "testcases")))
+					return dir.FullName;
+
+			throw new DirectoryNotFoundException(
+				"could not locate tests/testcases above " + AppContext.BaseDirectory);
+		}
+
+		public static Boo.Lang.Compiler.ICompilerStep ParsingStep()
+		{
+			return new Boo.Lang.Parser.BooParsingStep();
+		}
+
+		public static Boo.Lang.Compiler.ICompilerStep WsaParsingStep()
+		{
+			return new Boo.Lang.Parser.WSABooParsingStep();
+		}
+
+		public static Boo.Lang.Compiler.Ast.CompileUnit ParseFile(string fname)
+		{
+			return Boo.Lang.Parser.BooParser.ParseFile(fname);
 		}
 
 		public static string GetTestCasePath(string sample)

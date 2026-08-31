@@ -51,9 +51,7 @@ namespace booc
 		{
 			if (((IList)args).Contains("-utf8"))
 				return RunInUtf8Mode(args);
-			var result = AppRun(args);
-			//System.Console.ReadKey();
-			return result;
+			return AppRun(args);
 		}
 
 		private static int AppRun(string[] args)

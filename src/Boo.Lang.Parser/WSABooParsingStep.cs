@@ -1,5 +1,5 @@
 #region license
-// Copyright (c) 2004, Rodrigo B. de Oliveira (rbo@acm.org)
+// Copyright (c) 2004-2026, Rodrigo B. de Oliveira (rbo@acm.org) and the Boo contributors
 // All rights reserved.
 // 
 // Redistribution and use in source and binary forms, with or without modification,
@@ -26,13 +26,12 @@
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endregion
 
-namespace Boo.Lang.Parser
+namespace Boo.Lang.Parser;
+
+public class WSABooParsingStep : BooParsingStep
 {
-	public class WSABooParsingStep : BooParsingStep
+	override protected void ParseModule(string inputName, System.IO.TextReader reader)
 	{
-		override protected void ParseModule(string inputName, System.IO.TextReader reader, ParserErrorHandler errorHandler)
-		{
-			WSABooParser.ParseModule(this.TabSize, this.Context.CompileUnit, inputName, reader, errorHandler); 
-		}
+		WSABooParser.ParseModule(this.TabSize, this.Context.CompileUnit, inputName, reader, this.OnParserError);
 	}
 }
