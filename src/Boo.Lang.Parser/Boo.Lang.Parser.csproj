@@ -1,11 +1,10 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <Import Project="packages\Antlr4.4.3.0\build\Antlr4.props" Condition="Exists('packages\Antlr4.4.3.0\build\Antlr4.props')" />
   <PropertyGroup>
     <AssemblyName>Boo.Lang.Parser</AssemblyName>
     <RootNamespace>Boo.Lang.Parser</RootNamespace>
   </PropertyGroup>
-
 
   <ItemGroup>
     <ProjectReference Include="../Boo.Lang/Boo.Lang.csproj" />

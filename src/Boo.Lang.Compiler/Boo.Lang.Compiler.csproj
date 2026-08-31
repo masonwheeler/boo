@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <AssemblyName>Boo.Lang.Compiler</AssemblyName>
@@ -9,8 +9,6 @@
     <DefineConstants>$(DefineConstants);NET_40_OR_GREATER</DefineConstants>
   </PropertyGroup>
 
-
   <ItemGroup>
     <ProjectReference Include="../Boo.Lang/Boo.Lang.csproj" />
   </ItemGroup>
-</Project>

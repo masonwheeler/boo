@@ -1,11 +1,10 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <AssemblyName>Boo.Lang.CodeDom</AssemblyName>
     <RootNamespace>Boo.Lang.CodeDom</RootNamespace>
-
     <Description>CodeDom provider that generates Boo source.</Description>
   </PropertyGroup>
-
 
   <ItemGroup>
     <!-- System.CodeDom.Compiler moved out of the framework into this package. -->

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <AssemblyName>booc</AssemblyName>
@@ -37,4 +37,5 @@
     <ProjectReference Include="../Boo.Lang.Compiler/Boo.Lang.Compiler.csproj" />
     <ProjectReference Include="../Boo.Lang.Parser/Boo.Lang.Parser.csproj" />
   </ItemGroup>
+
 </Project>
