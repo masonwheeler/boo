@@ -480,8 +480,21 @@ namespace Boo.Lang.Compiler.TypeSystem
 			IType genericItemType = GetGenericEnumerableItemType(iteratorType);
 			if (null != genericItemType) return genericItemType;
 
+			// Try to find a GetEnumerator method
+			IType explicitEnumeratorType = GetExplicitEnumeratorItemType(iteratorType);
+			if (null != explicitEnumeratorType) return explicitEnumeratorType;
+
 			// If none of these work, the type is an enumerator of object
 			return ObjectType;
+		}
+
+		private static IType GetExplicitEnumeratorItemType(IType iteratorType)
+		{
+			var ge = iteratorType.GetMembers().OfType<IMethod>().FirstOrDefault(m => m.Name == "GetEnumerator");
+			if (ge == null) return null;
+			var eType = ge.ReturnType;
+			var current = eType.GetMembers().OfType<IProperty>().FirstOrDefault(p => p.Name == "Current");
+			return current?.Type;
 		}
 
 		public static IType GetExpressionType(Expression node)
