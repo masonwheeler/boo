@@ -12,3 +12,4 @@
   <ItemGroup>
     <ProjectReference Include="../Boo.Lang/Boo.Lang.csproj" />
   </ItemGroup>
+</Project>
