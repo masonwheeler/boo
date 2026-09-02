@@ -185,6 +185,7 @@ namespace Boo.Lang.Resources
         public const string BCE0180 = "Type '{0}' is not valid in an async method";
         public const string BCE0181 = "Unsafe method calls returning a pointer are not valid in an async method";
 		public const string BCE0182 = "Type {0} does not contain a valid GetAwaiter method";
+		public const string BCE0183 = "Expression '{0}' does not support slicing.";
         public const string BCW0000 = "WARNING: {0}";
 		public const string BCW0001 = "WARNING: Type '{0}' does not provide an implementation for '{1}' and will be marked abstract.";
 		public const string BCW0002 = "WARNING: Statement modifiers have no effect in labels.";
@@ -217,6 +218,7 @@ namespace Boo.Lang.Resources
 		public const string BCW0029 = "WARNING: Method '{0}' hides inherited non virtual method '{1}'. Declare '{0}' as a 'new' method.";
 		public const string BCW0030 = "WARNING: This async method lacks \'await\' operators and will run synchronously. Consider using the \'await\' operator to await non-blocking API calls, or \'await Task.Run(...)\' to do CPU-bound work on a background thread.";
         public const string BCW0031 = "WARNING: Resource file '{0}' could not be found.";
+        public const string BCW0032 = "WARNING: The reference assemblies for the running runtime were not found, so framework types are named by the implementation assembly. The output will not be usable from C#.";
         public const string BCE0500 = "Response file '{0}' listed more than once.";
 		public const string BCE0501 = "Response file '{0}' could not be found.";
 		public const string BCE0502 = "An error occurred while loading response file '{0}'.";
@@ -277,6 +279,7 @@ namespace Boo.Lang.Resources
 		public const string BooParser_MixedIndentation = "Mixed indentation, expected the use of {0}";
 		public const string BooParser_DuplicateAccessor = "A property can only state one {0}";
 		public const string BooParser_KeywordAsIdentifier = "Illegal use of keyword '{0}' as identifier";
+		public const string BooParser_DuplicateDocstring = "A docstring can only be written once, either above the body or within it";
 
 	}
 }
